@@ -1,9 +1,14 @@
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
-import Notiflix from 'notiflix';
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
 
-const startButton = document.querySelector('[data-start]');
-startButton.disabled = true;
+const buttonStart = document.querySelector('button[data-start]');
+buttonStart.disabled = true;
+const daysTimer = document.querySelector('span[data-days]');
+const hoursTimer = document.querySelector('span[data-hours]');
+const minutesTimer = document.querySelector('span[data-minutes]');
+const secondsTimer = document.querySelector('span[data-seconds]');
+let timerId = null;
 
 const options = {
   enableTime: true,
@@ -11,68 +16,58 @@ const options = {
   defaultDate: new Date(),
   minuteIncrement: 1,
   onClose (selectedDates) {
-    if (selectedDates[0] < new Date()) {
-      Notiflix.Notify.warning('Please choose a date in the future');
-      document.querySelector('#datetime-picker').value = '';
-      startButton.disabled = true;
+    console.log(selectedDates[0]);
+    if (new Date().getTime() > selectedDates[0].getTime()) {
+      Notify.failure('Please choose a date in the future');
     } else {
-      startButton.disabled = false;
+      buttonStart.disabled = false;
+      buttonStart.addEventListener('click', () => {
+        timerId = setInterval(() => {
+          buttonStart.disabled = true;
+          const difference = selectedDates[0].getTime() - new Date().getTime();
+          if (difference < 1000) {
+            clearInterval(timerId);
+            secondsTimer.textContent = '00';
+          } else {
+            function convertMs (ms) {
+              // Number of milliseconds per unit of time
+              const second = 1000;
+              const minute = second * 60;
+              const hour = minute * 60;
+              const day = hour * 24;
+
+              // Remaining days
+              const days = Math.floor(ms / day);
+              // Remaining hours
+              const hours = Math.floor((ms % day) / hour);
+              // Remaining minutes
+              const minutes = Math.floor(((ms % day) % hour) / minute);
+              // Remaining seconds
+              const seconds = Math.floor(
+                (((ms % day) % hour) % minute) / second
+              );
+
+              return { days, hours, minutes, seconds };
+            }
+
+            daysTimer.textContent = addLeadingZero(convertMs(difference).days);
+            hoursTimer.textContent = addLeadingZero(
+              convertMs(difference).hours
+            );
+            minutesTimer.textContent = addLeadingZero(
+              convertMs(difference).minutes
+            );
+            secondsTimer.textContent = addLeadingZero(
+              convertMs(difference).seconds
+            );
+            function addLeadingZero (value) {
+              return String(value).padStart(2, '0');
+            }
+          }
+        }, 1000);
+      });
     }
   },
 };
 
-flatpickr('#datetime-picker', options);
-
-startButton.addEventListener('click', () => {
-  const endDate = new Date(document.querySelector('#datetime-picker').value);
-  const timerInterval = setInterval(() => {
-    const timeLeft = endDate - new Date();
-    const { days, hours, minutes, seconds } = convertMs(timeLeft);
-    document.querySelector('[data-days]').textContent = addLeadingZero(days);
-    document.querySelector('[data-hours]').textContent = addLeadingZero(hours);
-    document.querySelector('[data-minutes]').textContent =
-      addLeadingZero(minutes);
-    document.querySelector('[data-seconds]').textContent =
-      addLeadingZero(seconds);
-  }, 1000);
-});
-
-function addLeadingZero (value) {
-  return String(value).padStart(2, '0');
-}
-
-function convertMs (ms) {
-  // Number of milliseconds per unit of time
-  const second = 1000;
-  const minute = second * 60;
-  const hour = minute * 60;
-  const day = hour * 24;
-
-  // Remaining days
-  const days = Math.floor(ms / day);
-  // Remaining hours
-  const hours = Math.floor((ms % day) / hour);
-  // Remaining minutes
-  const minutes = Math.floor(((ms % day) % hour) / minute);
-  // Remaining seconds
-  const seconds = Math.floor((((ms % day) % hour) % minute) / second);
-
-  return { days, hours, minutes, seconds };
-}
-
-const timerDiv = document.querySelector('.timer');
-timerDiv.style.marginTop = '20px';
-timerDiv.style.display = 'flex';
-const fieldDivs = timerDiv.querySelectorAll('.field');
-fieldDivs.forEach(fieldDiv => {
-  fieldDiv.style.marginRight = '20px';
-  fieldDiv.style.fontSize = '12px';
-  fieldDiv.style.textTransform = 'uppercase';
-  fieldDiv.style.display = 'flex';
-  fieldDiv.style.flexDirection = 'column';
-  fieldDiv.style.alignItems = 'center';
-});
-const values = document.querySelectorAll('.value');
-values.forEach(value => {
-  value.style.fontSize = '30px';
-});
+flatpickr('input#datetime-picker', options);
